@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Input Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        input[type="number"], input[type="text"] {
+            width: 100px;
+        }
+        select {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+<h1>Options Input Form</h1>
+<form id="optionsForm">
+    <table>
+        <tr>
+            <th>Exchange-Token</th>
+            <th>Symbol</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Action</th>
+        </tr>
+        <!-- Rows will be inserted here by JavaScript -->
+    </table>
+    <button type="submit">Submit</button>
+</form>
+
+<h2>Output</h2>
+<pre id="output"></pre>
+
+<script>
+    const csvUrl = [];
+
+    function populateTable() {
+        const table = document.querySelector("table");
+
+        csvUrl.forEach(option => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${option.symbol}</td>
+                <td>${option.name}</td>
+                <td><input type="number" name="quantity${option.symbol}" min="0" /></td>
+                <td><input type="number" name="price${option.symbol}" min="0" step="0.01" /></td>
+                <td>
+                    <select name="action${option.symbol}">
+                        <option value="1">BUY</option>
+                        <option value="-1">SELL</option>
+                    </select>
+                </td>
+            `;
+            table.appendChild(row);
+
+            row.querySelector(`input[name="quantity${option.symbol}"]`).addEventListener('input', updateOutput);
+            row.querySelector(`input[name="price${option.symbol}"]`).addEventListener('input', updateOutput);
+            row.querySelector(`select[name="action${option.symbol}"]`).addEventListener('change', updateOutput);
+        });
+    }
+
+    function updateOutput() {
+        let output = "";
+        let validOrders = 0;
+        const rows = [...document.querySelectorAll("table tr:not(:first-child)")];
+
+        rows.forEach(row => {
+            const exchangeToken = row.cells[0].innerText;
+            const quantity = row.querySelector(`input[name="quantity${exchangeToken}"]`).value;
+            const price = row.querySelector(`input[name="price${exchangeToken}"]`).value;
+            const action = row.querySelector(`select[name="action${exchangeToken}"]`).value;
+
+            if (quantity && price) {
+                validOrders++;
+                const orderType = price > 0 ? "1" : "2";
+                const productType = "INTRADAY"; // Assuming all orders are intraday, adjust as needed
+                output += `{"symbol":"NSE:${exchangeToken}-EQ","qty":${quantity},"side":${action},"type":${orderType},"productType":"${productType}","limitPrice":${price},"stopPrice":0,"validity":"DAY","disclosedQty":0,"offlineOrder":False,"stopLoss":0,"takeProfit":0},\n`;
+            }
+        });
+
+        if (output) {
+            output = output.slice(0, -2); // Remove last comma and new line
+            if (validOrders === 1) {
+                output = `data = ${output}`; // Single order without brackets
+                output += `\n\n// Call to place orders\n`;
+                output += `print(fyers.place_order(data))`;
+            } else {
+                output = `data = [\n${output}\n]`; // Multiple orders with brackets
+                output += `\n\n// Call to place orders\n`;
+                output += `print(fyers.place_basket_orders(data))`;
+            }
+        }
+
+        document.getElementById("output").innerText = output;
+    }
+
+    document.getElementById("optionsForm").onsubmit = function(event) {
+        event.preventDefault();
+        updateOutput();
+    };
+
+    window.onload = populateTable;
+</script>
+
+</body>
+</html>
